@@ -260,13 +260,45 @@ async function run() {
         }
       }
     ]).toArray();
+
     const revenue = result.length > 0 ? result[0].totalRevenue : 0;
+
       res.send({
         users,
         menuItems,
         orders, 
         revenue
       })
+    });
+
+    // using aggregate pipeline
+    app.get('/order-stats', async(req, res) =>{
+      const result = await paymentCollection.aggregate([
+        {
+          $unwind: '$mentItemIds'
+        },
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'mentItemIds',
+            foreignField: '_id',
+            as: 'menuItems'
+          }
+        },
+        {
+          $unwind: '$menuItems'
+        },
+        {
+          $group: {
+            _id: '$menuItems.category',
+            quantity: { $sum: 1},
+            revenue: {$sum: '$menuItems.price'}
+          }
+        }
+
+      ]).toArray();
+
+      res.send(result);
     })
 
     // Send a ping to confirm a successful connection
